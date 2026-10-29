@@ -13,6 +13,14 @@ function elem(tag, className, text) {
 	return node;
 }
 
+// Tables keep their natural width and scroll inside the card when the cell is
+// narrower, instead of spilling over the card edge.
+function scrollable(table) {
+	const wrap = elem("div", "synapse-table-scroll");
+	wrap.appendChild(table);
+	return wrap;
+}
+
 // ── number_card ───────────────────────────────────────────────────────────────
 // One metric, optional delta and trend arrow.
 export function number_card(el, config, data) {
@@ -77,7 +85,7 @@ export function table(el, config, data) {
 		tbody.appendChild(tr);
 	});
 	t.appendChild(tbody);
-	body.appendChild(t);
+	body.appendChild(scrollable(t));
 	return t;
 }
 
@@ -124,12 +132,21 @@ export function progress(el, config, data) {
 	const ratio = target > 0 ? Math.max(0, Math.min(1, value / target)) : 0;
 
 	const head = elem("div", "synapse-progress-head");
-	head.appendChild(elem("span", "synapse-progress-label", data.label || config.title || ""));
+	// The card title already names the bar; repeat the label only when it adds
+	// something.
+	const label = data.label && data.label !== config.title ? data.label : "";
+	head.appendChild(elem("span", "synapse-progress-label", label));
 	const vt = config.value_type || "number";
-	head.appendChild(
-		elem("span", "synapse-progress-figures",
-			formatValue(value, vt, { currency: config.currency }) + " / " + formatValue(target, vt, { currency: config.currency })),
+	// Each figure is isolated in a <bdi>. A right-to-left currency symbol such
+	// as AED's otherwise makes the browser reorder "value / target" so the
+	// target reads first.
+	const figures = elem("span", "synapse-progress-figures");
+	figures.append(
+		elem("bdi", null, formatValue(value, vt, { currency: config.currency })),
+		" / ",
+		elem("bdi", null, formatValue(target, vt, { currency: config.currency })),
 	);
+	head.appendChild(figures);
 	wrap.appendChild(head);
 
 	const track = elem("div", "synapse-progress-track");
@@ -178,7 +195,7 @@ export function pivot(el, config, data) {
 		tbody.appendChild(tr);
 	});
 	t.appendChild(tbody);
-	body.appendChild(t);
+	body.appendChild(scrollable(t));
 	return t;
 }
 

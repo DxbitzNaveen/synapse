@@ -28,6 +28,7 @@ class SynapseConsole {
 		const actions = [
 			{ label: __("New Profile"), icon: "add", onclick: () => frappe.new_doc("Synapse Profile") },
 			{ label: __("Profiles"), icon: "assign", onclick: () => frappe.set_route("List", "Synapse Profile") },
+			{ label: __("Pages"), icon: "dashboard", onclick: () => frappe.set_route("List", "Synapse Page") },
 			{ label: __("Settings"), icon: "setting-gear", onclick: () => frappe.set_route("Form", "Synapse Settings", "Synapse Settings") },
 			{ label: __("Audit Log"), icon: "list-alt", onclick: () => frappe.set_route("List", "Synapse Log") },
 			{ label: __("Health Check"), icon: "refresh", onclick: () => this.health_check() },

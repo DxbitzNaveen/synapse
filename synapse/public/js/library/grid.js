@@ -96,7 +96,9 @@ function placeCell(grid, span, newRow) {
 	cell.className = "synapse-page-block";
 	cell.style.setProperty("--span", span);
 	cell.setAttribute("data-span", span);
-	if (newRow) cell.style.gridColumn = "1 / span " + span;
+	// Only the start line is forced here; the span stays in CSS so the narrow
+	// layouts can still clamp it.
+	if (newRow) cell.classList.add("synapse-new-row");
 	const body = document.createElement("div");
 	body.className = "synapse-page-block-body";
 	cell.appendChild(body);

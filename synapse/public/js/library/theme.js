@@ -83,17 +83,22 @@ export function formatValue(value, type, options) {
 	}
 }
 
-// Empty a container before a re-render, dropping any chart instance so no orphan
-// SVG is left behind. Charts store their instance on the element; we forget it.
+// Empty a container before a re-render. Any chart drawn on the element or on a
+// chart host inside it is destroyed first, so its resize observer and window
+// listeners go with it instead of redrawing into detached nodes.
 export function clearEl(el) {
 	if (!el) return;
-	if (el.__synapseChart) {
+	const hosts = [el, ...el.querySelectorAll(".synapse-chart-host")];
+	hosts.forEach((node) => {
+		const chart = node.__synapseChart;
+		if (!chart) return;
 		try {
-			el.__synapseChart = null;
+			if (typeof chart.destroy === "function") chart.destroy();
 		} catch (e) {
 			/* nothing to do */
 		}
-	}
+		node.__synapseChart = null;
+	});
 	el.innerHTML = "";
 }
 

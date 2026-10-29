@@ -18,8 +18,9 @@ frappe.pages["synapse-view"].on_page_show = function (wrapper) {
 
 class SynapsePageView {
 	constructor(page) {
+		// No load() here: Frappe fires on_page_show right after on_page_load,
+		// so loading in both drew every page twice.
 		this.page = page;
-		this.load();
 	}
 
 	route_name() {
@@ -35,7 +36,8 @@ class SynapsePageView {
 
 		const name = this.route_name();
 		if (!name) {
-			this.page.main.html(placeholder("No page named", "Open /app/synapse-view/<name>, or pick a Synapse Page from the list."));
+			this.page.set_title(__("Synapse View"));
+			this.render_index();
 			return;
 		}
 
@@ -54,6 +56,40 @@ class SynapsePageView {
 			},
 			() => this.page.main.html(placeholder("Could not load page", name)),
 		);
+	}
+
+	// Opened without a page name: list the enabled pages to pick from, rather
+	// than a dead end.
+	render_index() {
+		this.page.main.html(`<div class="text-muted" style="padding:24px;">${__("Loading...")}</div>`);
+		frappe.db
+			.get_list("Synapse Page", {
+				filters: { enabled: 1 },
+				fields: ["name", "title"],
+				order_by: "title asc",
+				limit: 500,
+			})
+			.then((pages) => {
+				if (!pages.length) {
+					this.page.main.html(placeholder("No Synapse Pages yet", "Create one from the Synapse Page list."));
+					return;
+				}
+				const $list = $(`<div style="max-width:760px;padding:8px 0;"></div>`);
+				$(`<div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 10px;">${__("Pages")}</div>`).appendTo($list);
+				pages.forEach((p) => {
+					const $item = $(
+						`<a href="#" style="display:block;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border-color);border-radius:8px;color:var(--text-color);text-decoration:none;background:var(--card-bg,var(--fg-color));">
+							<div style="font-weight:600;">${frappe.utils.escape_html(p.title || p.name)}</div>
+							<div class="text-muted" style="font-size:12px;">${frappe.utils.escape_html(p.name)}</div>
+						</a>`
+					).appendTo($list);
+					$item.on("click", (e) => {
+						e.preventDefault();
+						frappe.set_route("synapse-view", p.name);
+					});
+				});
+				this.page.main.empty().append($list);
+			});
 	}
 }
 
