@@ -49,7 +49,7 @@
 }
 .synapse-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-color, var(--gray-100)); color: var(--text-color); }
 .synapse-table tr:last-child td { border-bottom: none; }
-.synapse-table .text-right { text-align: right; }
+.synapse-table .text-right { text-align: right; white-space: nowrap; }
 .synapse-pivot-rowhead { color: var(--text-color); font-weight: 600; text-align: left; }
 .synapse-pivot-total { font-weight: 600; }
 
@@ -89,31 +89,59 @@
 .synapse-text-block { font-size: var(--text-md, 13px); color: var(--text-color); line-height: 1.6; }
 .synapse-text-block h1, .synapse-text-block h2, .synapse-text-block h3 { color: var(--text-color); margin: 0.4em 0; }
 .synapse-text-block p { margin: 0.4em 0; }
+.synapse-text-block > :first-child { margin-top: 0; }
+.synapse-text-block > :last-child { margin-bottom: 0; }
 .synapse-text-block code { background: var(--control-bg, var(--gray-100)); padding: 1px 4px; border-radius: 4px; }
 
-/* M1 page grid: a responsive 12-column layout. On a wide desk each block spans
-   its --span of 12; the grid collapses to 6 columns on a tablet and to a single
-   stacked column on a phone, so a page stays readable at any width. */
+/* charts: the card body frappe-charts draws into */
+.synapse-chart-host { min-width: 0; }
+.synapse-chart-scroll { overflow-x: auto; }
+.synapse-chart-scroll > .chart-container { margin: 0 auto; }
+.synapse-chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 4px 4px 0; font-size: var(--text-xs, 11px); }
+.synapse-legend-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.synapse-legend-swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.synapse-legend-label { color: var(--text-muted, var(--gray-600)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.synapse-legend-value { color: var(--text-color); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* tables scroll inside their card rather than spilling past it */
+.synapse-table-scroll { overflow-x: auto; }
+
+/* M1 page grid: a responsive 12-column layout. On a wide page each block spans
+   its --span of 12. The breakpoints are container queries on the page itself,
+   not the viewport, because the desk sidebar takes a varying share of the
+   window. Below 760px the grid halves to 6 columns, below 480px it stacks.
+   Only the end line carries the span, so a forced new row (column_break) just
+   pins the start line and the narrow layouts can still clamp the span. */
+.synapse-page { container: synapse-page / inline-size; }
 .synapse-page-section { margin-bottom: 8px; }
 .synapse-page-grid {
 	display: grid;
 	grid-template-columns: repeat(12, minmax(0, 1fr));
 	gap: 12px;
-	align-items: start;
+	align-items: stretch;
 }
-.synapse-page-block { grid-column: span var(--span, 12); min-width: 0; }
-.synapse-page-block-body { min-width: 0; }
+.synapse-page-block { grid-column-end: span var(--span, 12); min-width: 0; }
+.synapse-page-block.synapse-new-row { grid-column-start: 1; }
+/* Cards fill their row so blocks side by side end on one line. */
+.synapse-page-block-body { min-width: 0; height: 100%; }
+.synapse-page-block-body > .synapse-component,
+.synapse-page-block-body > .synapse-number-card,
+.synapse-page-block-body > .synapse-callout { height: 100%; box-sizing: border-box; }
 
-@media (max-width: 991px) {
-	/* Tablet: halve the grid to 6 columns. A block keeps its --span; the grid
-	   auto-clamps any span wider than 6 to full width, so nothing is hair-thin. */
+@container synapse-page (max-width: 760px) {
+	/* Narrow: 6 columns. A span wider than the grid would add implicit
+	   columns and push blocks over each other, so every span is clamped:
+	   quarter-width blocks go half width, anything wider goes full width. */
 	.synapse-page-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+	.synapse-page-block { grid-column-end: span 6; }
+	.synapse-page-block:is([data-span="1"], [data-span="2"], [data-span="3"]) { grid-column-end: span 3; }
 }
 
-@media (max-width: 640px) {
+@container synapse-page (max-width: 480px) {
 	/* Phone: one column, every block full width. */
-	.synapse-page-grid { grid-template-columns: 1fr; }
-	.synapse-page-block { grid-column: 1 / -1 !important; }
+	.synapse-page-grid { grid-template-columns: minmax(0, 1fr); }
+	/* Specific enough to beat the 6-column clamp, which also matches here. */
+	.synapse-page-grid > .synapse-page-block { grid-column: 1 / -1; }
 }
 
 /* layout primitives */

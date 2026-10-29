@@ -8,7 +8,13 @@ app_license = "agpl-3.0"
 # The component library (M0). The bundle exposes synapse.library on the desk; the
 # CSS styles the Group B widgets and placeholders from theme variables.
 app_include_js = ["synapse.bundle.js"]
-app_include_css = ["synapse_library.css"]
+# A plain stylesheet, not a bundle, so it needs its full assets path. A bare
+# filename is emitted as /synapse_library.css and 404s.
+app_include_css = ["/assets/synapse/css/synapse_library.css"]
+
+# install-app marks every patch as already run without executing it, so the
+# seed_components patch never fills the catalog on a fresh site. Seed it here.
+after_install = "synapse.components.catalog.seed"
 
 # The MCP endpoint is served at:
 #     POST /api/method/synapse.mcp.handle_mcp

@@ -10,22 +10,57 @@
 // has no horizontal-bar option. Those two, like map, render as a labelled
 // not-implemented placeholder rather than a faked look.
 
-import { chartsAvailable, clearEl, placeholder, resolveColors } from "./theme.js";
+import { chartsAvailable, formatValue, placeholder, resolveColors, shell } from "./theme.js";
 
 const DEFAULT_HEIGHT = 240;
 
 // ── shared builders ───────────────────────────────────────────────────────────
 
-// Mount a frappe-charts config on the element, replacing any previous chart so
-// no orphan SVG is left behind.
-function mount(el, cfg) {
-	clearEl(el);
+// Mount a frappe-charts config inside the same titled card every widget sits
+// in, so a chart and a table side by side read as one set. The title is ours,
+// not frappe-charts', to match the widgets. shell() clears the element first,
+// which destroys any previous chart. `scroll` lets a fixed-width chart (the
+// heatmap) scroll inside its card instead of spilling out of it.
+function mount(el, config, cfg, scroll) {
+	const body = shell(el, config.title);
+	const host = document.createElement("div");
+	host.className = scroll ? "synapse-chart-host synapse-chart-scroll" : "synapse-chart-host";
+	body.appendChild(host);
 	try {
-		el.__synapseChart = new frappe.Chart(el, cfg);
+		host.__synapseChart = new frappe.Chart(host, cfg);
 	} catch (e) {
-		placeholder(el, "This chart could not be drawn", String(e && e.message ? e.message : e));
+		placeholder(host, "This chart could not be drawn", String(e && e.message ? e.message : e));
 	}
-	return el.__synapseChart;
+	return host.__synapseChart;
+}
+
+// The legend frappe-charts draws for pie, donut and percentage fits
+// floor(width / 150) items to a row, places one more before wrapping, and never
+// grows the chart to show the wrapped rows. In a narrow cell that clips the
+// third item and hides the rest. We turn it off and draw a wrapping HTML legend
+// from the chart's own state, so labels, colours and any "Rest" slice match.
+function partLegend(chart) {
+	const state = chart && chart.state;
+	if (!state || !Array.isArray(state.labels)) return;
+	const legend = document.createElement("div");
+	legend.className = "synapse-chart-legend";
+	state.labels.forEach((label, i) => {
+		const item = document.createElement("div");
+		item.className = "synapse-legend-item";
+		const swatch = document.createElement("span");
+		swatch.className = "synapse-legend-swatch";
+		swatch.style.background = chart.colors[i];
+		const name = document.createElement("span");
+		name.className = "synapse-legend-label";
+		name.textContent = label;
+		name.title = label;
+		const value = document.createElement("span");
+		value.className = "synapse-legend-value";
+		value.textContent = formatValue((state.sliceTotals || [])[i], "number");
+		item.append(swatch, name, value);
+		legend.appendChild(item);
+	});
+	chart.parent.appendChild(legend);
 }
 
 // Options every axis and part-to-whole chart shares. Only keys in the
@@ -74,7 +109,9 @@ function axisChart(el, config, data, type, perDatasetType) {
 	const axisOptions = {};
 	if (config.x_axis_mode) axisOptions.xAxisMode = config.x_axis_mode; // "span" | "tick"
 	if (config.y_axis_mode) axisOptions.yAxisMode = config.y_axis_mode;
-	if (config.shorten_y_numbers) axisOptions.shortenYAxisNumbers = 1;
+	// On by default: an unshortened "5000000" is wider than the y-axis gutter
+	// and gets clipped at the card edge. An author can still opt out.
+	if (config.shorten_y_numbers !== false) axisOptions.shortenYAxisNumbers = 1;
 	if (config.x_is_series) axisOptions.xIsSeries = 1;
 	if (Object.keys(axisOptions).length) cfg.axisOptions = axisOptions;
 
@@ -98,7 +135,7 @@ function axisChart(el, config, data, type, perDatasetType) {
 		// the tooltip formatter and any future use, without inventing UI.
 	}
 
-	return mount(el, cfg);
+	return mount(el, config, cfg);
 }
 
 function validPartData(data) {
@@ -116,10 +153,13 @@ function partChart(el, config, data, type) {
 		type,
 		data: { labels: data.labels, datasets: [{ values: data.values }] },
 		...commonOptions(config, el),
+		showLegend: 0, // replaced by partLegend
 	};
 	if (config.max_slices) cfg.maxSlices = Number(config.max_slices);
 	if (config.max_legend_points) cfg.maxLegendPoints = Number(config.max_legend_points);
-	return mount(el, cfg);
+	const chart = mount(el, config, cfg);
+	partLegend(chart);
+	return chart;
 }
 
 // ── Group A renderers ─────────────────────────────────────────────────────────
@@ -166,13 +206,17 @@ export function heatmap(el, config, data) {
 			start: data.start ? new Date(data.start) : undefined,
 			end: data.end ? new Date(data.end) : undefined,
 		},
-		height: Number(config.height) || DEFAULT_HEIGHT,
 	};
+	// The heatmap sizes itself from its week count; forcing the axis-chart
+	// default height only leaves a blank band above its legend.
+	if (config.height) cfg.height = Number(config.height);
 	if (config.discrete_domains === false) cfg.discreteDomains = 0;
 	if (config.count_label) cfg.countLabel = config.count_label;
 	const colors = resolveColors(config.colors, el);
 	if (colors) cfg.colors = colors;
-	return mount(el, cfg);
+	// Its width is fixed by the date range, so it scrolls inside its card on a
+	// narrow screen rather than overflowing the page.
+	return mount(el, config, cfg, true);
 }
 
 // ── not native in this frappe-charts build ────────────────────────────────────
